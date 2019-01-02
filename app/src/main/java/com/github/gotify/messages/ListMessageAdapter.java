@@ -78,16 +78,32 @@ public class ListMessageAdapter extends BaseAdapter {
                 message.message.getDate() != null
                         ? Utils.dateToRelative(message.message.getDate())
                         : "?");
-        holder.copy.setOnClickListener((ignored) -> {
-            ClipboardManager clipboard = (ClipboardManager) holder.copy.getContext().getSystemService(CLIPBOARD_SERVICE);
-            if (clipboard==null) {
-                Toast.makeText(holder.copy.getContext(), R.string.clipboard_copy_failed, Toast.LENGTH_SHORT).show();
-                return;
-            }
-            clipboard.setPrimaryClip(ClipData.newPlainText("message", message.message.getTitle()+"\n"+message.message.getMessage()));
-            Toast.makeText(holder.copy.getContext(), R.string.clipboard_copied, Toast.LENGTH_SHORT).show();
-            return;
-        });
+        holder.copy.setOnClickListener(
+                (ignored) -> {
+                    ClipboardManager clipboard =
+                            (ClipboardManager)
+                                    holder.copy.getContext().getSystemService(CLIPBOARD_SERVICE);
+                    if (clipboard == null) {
+                        Toast.makeText(
+                                        holder.copy.getContext(),
+                                        R.string.clipboard_copy_failed,
+                                        Toast.LENGTH_SHORT)
+                                .show();
+                        return;
+                    }
+                    clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                    "message",
+                                    message.message.getTitle()
+                                            + "\n"
+                                            + message.message.getMessage()));
+                    Toast.makeText(
+                                    holder.copy.getContext(),
+                                    R.string.clipboard_copied,
+                                    Toast.LENGTH_SHORT)
+                            .show();
+                    return;
+                });
         holder.delete.setOnClickListener((ignored) -> delete.delete(message.message));
 
         return view;
