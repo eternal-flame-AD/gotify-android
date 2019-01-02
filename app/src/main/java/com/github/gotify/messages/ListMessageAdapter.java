@@ -1,5 +1,7 @@
 package com.github.gotify.messages;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,6 +10,7 @@ import android.widget.BaseAdapter;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.recyclerview.widget.RecyclerView;
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -17,6 +20,8 @@ import com.github.gotify.client.model.Message;
 import com.github.gotify.messages.provider.MessageWithImage;
 import com.squareup.picasso.Picasso;
 import java.util.List;
+
+import static android.content.Context.CLIPBOARD_SERVICE;
 
 public class ListMessageAdapter extends BaseAdapter {
 
@@ -73,6 +78,16 @@ public class ListMessageAdapter extends BaseAdapter {
                 message.message.getDate() != null
                         ? Utils.dateToRelative(message.message.getDate())
                         : "?");
+        holder.copy.setOnClickListener((ignored) -> {
+            ClipboardManager clipboard = (ClipboardManager) holder.copy.getContext().getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard==null) {
+                Toast.makeText(holder.copy.getContext(), R.string.clipboard_copy_failed, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            clipboard.setPrimaryClip(ClipData.newPlainText("message", message.message.getTitle()+"\n"+message.message.getMessage()));
+            Toast.makeText(holder.copy.getContext(), R.string.clipboard_copied, Toast.LENGTH_SHORT).show();
+            return;
+        });
         holder.delete.setOnClickListener((ignored) -> delete.delete(message.message));
 
         return view;
@@ -93,6 +108,9 @@ public class ListMessageAdapter extends BaseAdapter {
 
         @BindView(R.id.message_delete)
         ImageButton delete;
+
+        @BindView(R.id.message_copy)
+        ImageButton copy;
 
         ViewHolder(final View view) {
             super(view);

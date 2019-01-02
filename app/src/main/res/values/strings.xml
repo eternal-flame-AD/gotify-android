@@ -28,6 +28,7 @@
     <string name="logs">Logs</string>
     <string name="message_image_desc">the image of a message</string>
     <string name="delete_message">delete message</string>
+    <string name="copy_message">copy message</string>
     <string name="gotify_url">Gotify URL</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
@@ -57,4 +58,6 @@
     <string name="warning">Warning</string>
     <string name="http_warning">Using http is insecure and it\'s recommend to use https instead. Use your favorite search engine to get more information about this topic.</string>
     <string name="i_understand">I Understand</string>
+    <string name="clipboard_copied">Copied to clipboard</string>
+    <string name="clipboard_copy_failed">Failed to copy</string>
 </resources>
