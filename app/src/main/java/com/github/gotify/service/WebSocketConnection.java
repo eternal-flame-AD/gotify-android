@@ -21,7 +21,10 @@ public class WebSocketConnection {
     private final ConnectivityManager connectivityManager;
     private OkHttpClient client;
 
-    private final Handler handler = new Handler();
+    public static final int RECONNECT_SCHEDULE_REASON_NETWORK = 0;
+    public static final int RECONNECT_SCHEDULE_REASON_CONN_ERR = 1;
+    private final Handler reconnectHandler = new Handler();
+    private Runnable reconnectCallback = this::start;
     private int errorCount = 0;
 
     private final String baseUrl;
@@ -31,7 +34,7 @@ public class WebSocketConnection {
     private Runnable onClose;
     private Runnable onOpen;
     private BadRequestRunnable onBadRequest;
-    private OnFailureCallback onFailure;
+    private OnReconnectScheduleRunnable onReconnectSchedule;
     private Runnable onReconnected;
     private boolean isClosed;
     private Runnable onDisconnect;
@@ -66,6 +69,7 @@ public class WebSocketConnection {
     }
 
     synchronized WebSocketConnection onOpen(Runnable onOpen) {
+        reconnectHandler.removeCallbacks(reconnectCallback);
         this.onOpen = onOpen;
         return this;
     }
@@ -80,8 +84,9 @@ public class WebSocketConnection {
         return this;
     }
 
-    synchronized WebSocketConnection onFailure(OnFailureCallback onFailure) {
-        this.onFailure = onFailure;
+    synchronized WebSocketConnection onReconnectSchedule(
+            OnReconnectScheduleRunnable onReconnectSchedule) {
+        this.onReconnectSchedule = onReconnectSchedule;
         return this;
     }
 
@@ -118,7 +123,20 @@ public class WebSocketConnection {
         }
     }
 
+    public synchronized void scheduleReconnect(long delay, int reason) {
+        reconnectHandler.removeCallbacks(reconnectCallback);
+
+        Log.i(
+                "WebSocket: scheduling a restart in "
+                        + delay / TimeUnit.SECONDS.toMillis(1)
+                        + " second(s)");
+        reconnectHandler.postDelayed(reconnectCallback, delay);
+
+        onReconnectSchedule.execute(delay, reason);
+    }
+
     private class Listener extends WebSocketListener {
+
         @Override
         public void onOpen(WebSocket webSocket, Response response) {
             Log.i("WebSocket: opened");
@@ -155,6 +173,11 @@ public class WebSocketConnection {
             super.onClosed(webSocket, code, reason);
         }
 
+        synchronized void scheduleReconnect(long delay, int reason) {
+            WebSocketConnection.this.scheduleReconnect(delay, reason);
+            onReconnectSchedule.execute(delay, reason);
+        }
+
         @Override
         public void onFailure(WebSocket webSocket, Throwable t, Response response) {
             String code = response != null ? "StatusCode: " + response.code() : "";
@@ -167,6 +190,8 @@ public class WebSocketConnection {
                     return;
                 }
 
+                errorCount++;
+
                 NetworkInfo network = connectivityManager.getActiveNetworkInfo();
                 if (network == null || !network.isConnected()) {
                     Log.i("WebSocket: Network not connected");
@@ -174,14 +199,10 @@ public class WebSocketConnection {
                     return;
                 }
 
-                int minutes = Math.min(errorCount * 2 + 1, 20);
+                int minutes = Math.min(errorCount * 2 - 1, 20);
 
-                Log.i("WebSocket: trying to restart in " + minutes + " minute(s)");
-
-                errorCount++;
-                handler.postDelayed(
-                        WebSocketConnection.this::start, TimeUnit.MINUTES.toMillis(minutes));
-                onFailure.execute(minutes);
+                scheduleReconnect(
+                        TimeUnit.MINUTES.toMillis(minutes), RECONNECT_SCHEDULE_REASON_CONN_ERR);
             }
 
             super.onFailure(webSocket, t, response);
@@ -192,7 +213,7 @@ public class WebSocketConnection {
         void execute(String message);
     }
 
-    interface OnFailureCallback {
-        void execute(int minutesToTryAgain);
+    interface OnReconnectScheduleRunnable {
+        void execute(long minutesToTryAgain, int reason);
     }
 }

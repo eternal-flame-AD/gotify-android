@@ -10,7 +10,6 @@ import android.content.IntentFilter;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.os.Build;
-import android.os.Handler;
 import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -37,7 +36,6 @@ public class WebSocketService extends Service {
             WebSocketService.class.getName() + ".NEW_MESSAGE";
 
     private static final int NOT_LOADED = -2;
-    private Handler handler = new Handler();
 
     private Settings settings;
     private WebSocketConnection connection;
@@ -98,7 +96,19 @@ public class WebSocketService extends Service {
                         .onOpen(this::onOpen)
                         .onClose(() -> foreground(getString(R.string.websocket_closed)))
                         .onBadRequest(this::onBadRequest)
-                        .onFailure((min) -> foreground(getString(R.string.websocket_failed, min)))
+                        .onReconnectSchedule(
+                                (min, reason) -> {
+                                    switch (reason) {
+                                        case WebSocketConnection.RECONNECT_SCHEDULE_REASON_CONN_ERR:
+                                            foreground(getString(R.string.websocket_failed, min));
+                                            break;
+                                        case WebSocketConnection.RECONNECT_SCHEDULE_REASON_NETWORK:
+                                            foreground(
+                                                    getString(
+                                                            R.string.websocket_network_revocered));
+                                            break;
+                                    }
+                                })
                         .onDisconnect(this::onDisconnect)
                         .onMessage(this::onMessage)
                         .onReconnected(this::notifyMissedNotifications)
@@ -114,23 +124,14 @@ public class WebSocketService extends Service {
         foreground(getString(R.string.websocket_no_network));
     }
 
-    private Runnable reconnectScheduledCallback;
-
     private void doReconnect() {
         if (connection == null) {
             return;
         }
 
-        if (reconnectScheduledCallback != null) {
-            handler.removeCallbacks(reconnectScheduledCallback);
-        }
-        reconnectScheduledCallback = () -> new Thread(this::notifyAndStart).start();
-        handler.postDelayed(reconnectScheduledCallback, TimeUnit.SECONDS.toMillis(5));
-    }
-
-    private void notifyAndStart() {
-        notifyMissedNotifications();
-        connection.start();
+        connection.scheduleReconnect(
+                TimeUnit.SECONDS.toMillis(5),
+                WebSocketConnection.RECONNECT_SCHEDULE_REASON_NETWORK);
     }
 
     private void onBadRequest(String message) {
