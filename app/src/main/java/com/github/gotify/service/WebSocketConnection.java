@@ -21,8 +21,6 @@ public class WebSocketConnection {
     private final ConnectivityManager connectivityManager;
     private OkHttpClient client;
 
-    public static final int RECONNECT_SCHEDULE_REASON_NETWORK = 0;
-    public static final int RECONNECT_SCHEDULE_REASON_CONN_ERR = 1;
     private final Handler reconnectHandler = new Handler();
     private Runnable reconnectCallback = this::start;
     private int errorCount = 0;
@@ -69,7 +67,6 @@ public class WebSocketConnection {
     }
 
     synchronized WebSocketConnection onOpen(Runnable onOpen) {
-        reconnectHandler.removeCallbacks(reconnectCallback);
         this.onOpen = onOpen;
         return this;
     }
@@ -123,16 +120,16 @@ public class WebSocketConnection {
         }
     }
 
-    public synchronized void scheduleReconnect(long delay, int reason) {
+    public synchronized void scheduleReconnect(long millis) {
         reconnectHandler.removeCallbacks(reconnectCallback);
 
         Log.i(
                 "WebSocket: scheduling a restart in "
-                        + delay / TimeUnit.SECONDS.toMillis(1)
+                        + TimeUnit.SECONDS.convert(millis, TimeUnit.MILLISECONDS)
                         + " second(s)");
-        reconnectHandler.postDelayed(reconnectCallback, delay);
+        reconnectHandler.postDelayed(reconnectCallback, millis);
 
-        onReconnectSchedule.execute(delay, reason);
+        onReconnectSchedule.execute(TimeUnit.MINUTES.convert(millis, TimeUnit.MILLISECONDS));
     }
 
     private class Listener extends WebSocketListener {
@@ -173,11 +170,6 @@ public class WebSocketConnection {
             super.onClosed(webSocket, code, reason);
         }
 
-        synchronized void scheduleReconnect(long delay, int reason) {
-            WebSocketConnection.this.scheduleReconnect(delay, reason);
-            onReconnectSchedule.execute(delay, reason);
-        }
-
         @Override
         public void onFailure(WebSocket webSocket, Throwable t, Response response) {
             String code = response != null ? "StatusCode: " + response.code() : "";
@@ -201,8 +193,7 @@ public class WebSocketConnection {
 
                 int minutes = Math.min(errorCount * 2 - 1, 20);
 
-                scheduleReconnect(
-                        TimeUnit.MINUTES.toMillis(minutes), RECONNECT_SCHEDULE_REASON_CONN_ERR);
+                scheduleReconnect(TimeUnit.MINUTES.toMillis(minutes));
             }
 
             super.onFailure(webSocket, t, response);
@@ -214,6 +205,6 @@ public class WebSocketConnection {
     }
 
     interface OnReconnectScheduleRunnable {
-        void execute(long minutesToTryAgain, int reason);
+        void execute(long millis);
     }
 }
