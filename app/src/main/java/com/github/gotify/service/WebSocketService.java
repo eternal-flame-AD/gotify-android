@@ -97,18 +97,7 @@ public class WebSocketService extends Service {
                         .onClose(() -> foreground(getString(R.string.websocket_closed)))
                         .onBadRequest(this::onBadRequest)
                         .onReconnectSchedule(
-                                (min, reason) -> {
-                                    switch (reason) {
-                                        case WebSocketConnection.RECONNECT_SCHEDULE_REASON_CONN_ERR:
-                                            foreground(getString(R.string.websocket_failed, min));
-                                            break;
-                                        case WebSocketConnection.RECONNECT_SCHEDULE_REASON_NETWORK:
-                                            foreground(
-                                                    getString(
-                                                            R.string.websocket_network_revocered));
-                                            break;
-                                    }
-                                })
+                                (min) -> foreground(getString(R.string.websocket_failed, min)))
                         .onDisconnect(this::onDisconnect)
                         .onMessage(this::onMessage)
                         .onReconnected(this::notifyMissedNotifications)
@@ -129,9 +118,7 @@ public class WebSocketService extends Service {
             return;
         }
 
-        connection.scheduleReconnect(
-                TimeUnit.SECONDS.toMillis(5),
-                WebSocketConnection.RECONNECT_SCHEDULE_REASON_NETWORK);
+        connection.scheduleReconnect(TimeUnit.SECONDS.toMillis(5));
     }
 
     private void onBadRequest(String message) {
