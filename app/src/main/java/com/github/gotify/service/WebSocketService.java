@@ -37,6 +37,7 @@ public class WebSocketService extends Service {
             WebSocketService.class.getName() + ".NEW_MESSAGE";
 
     private static final int NOT_LOADED = -2;
+    private Handler handler = new Handler();
 
     private Settings settings;
     private WebSocketConnection connection;
@@ -113,15 +114,18 @@ public class WebSocketService extends Service {
         foreground(getString(R.string.websocket_no_network));
     }
 
+    private Runnable reconnectScheduledCallback;
+
     private void doReconnect() {
         if (connection == null) {
             return;
         }
 
-        new Handler()
-                .postDelayed(
-                        () -> new Thread(this::notifyAndStart).start(),
-                        TimeUnit.SECONDS.toMillis(5));
+        if (reconnectScheduledCallback != null) {
+            handler.removeCallbacks(reconnectScheduledCallback);
+        }
+        reconnectScheduledCallback = () -> new Thread(this::notifyAndStart).start();
+        handler.postDelayed(reconnectScheduledCallback, TimeUnit.SECONDS.toMillis(5));
     }
 
     private void notifyAndStart() {
