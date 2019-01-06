@@ -96,7 +96,7 @@ public class WebSocketService extends Service {
                         .onOpen(this::onOpen)
                         .onClose(() -> foreground(getString(R.string.websocket_closed)))
                         .onBadRequest(this::onBadRequest)
-                        .onReconnectSchedule(
+                        .onNetworkFailure(
                                 (min) -> foreground(getString(R.string.websocket_failed, min)))
                         .onDisconnect(this::onDisconnect)
                         .onMessage(this::onMessage)

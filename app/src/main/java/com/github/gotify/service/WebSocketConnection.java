@@ -32,7 +32,7 @@ public class WebSocketConnection {
     private Runnable onClose;
     private Runnable onOpen;
     private BadRequestRunnable onBadRequest;
-    private OnReconnectScheduleRunnable onReconnectSchedule;
+    private OnNetworkFailureRunnable onNetworkFailure;
     private Runnable onReconnected;
     private boolean isClosed;
     private Runnable onDisconnect;
@@ -81,9 +81,8 @@ public class WebSocketConnection {
         return this;
     }
 
-    synchronized WebSocketConnection onReconnectSchedule(
-            OnReconnectScheduleRunnable onReconnectSchedule) {
-        this.onReconnectSchedule = onReconnectSchedule;
+    synchronized WebSocketConnection onNetworkFailure(OnNetworkFailureRunnable onNetworkFailure) {
+        this.onNetworkFailure = onNetworkFailure;
         return this;
     }
 
@@ -128,8 +127,6 @@ public class WebSocketConnection {
                         + TimeUnit.SECONDS.convert(millis, TimeUnit.MILLISECONDS)
                         + " second(s)");
         reconnectHandler.postDelayed(reconnectCallback, millis);
-
-        onReconnectSchedule.execute(TimeUnit.MINUTES.convert(millis, TimeUnit.MILLISECONDS));
     }
 
     private class Listener extends WebSocketListener {
@@ -193,6 +190,7 @@ public class WebSocketConnection {
 
                 int minutes = Math.min(errorCount * 2 - 1, 20);
 
+                onNetworkFailure.execute(minutes);
                 scheduleReconnect(TimeUnit.MINUTES.toMillis(minutes));
             }
 
@@ -204,7 +202,7 @@ public class WebSocketConnection {
         void execute(String message);
     }
 
-    interface OnReconnectScheduleRunnable {
+    interface OnNetworkFailureRunnable {
         void execute(long millis);
     }
 }
